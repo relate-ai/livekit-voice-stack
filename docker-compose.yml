@@ -122,6 +122,7 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
       SERVICE_FQDN_WEB_8000: https://voice.relate-ai.site
+      SERVICE_FQDN_WEB_8000_API: https://voice-api.relate-ai.site
     depends_on:
       livekit: {condition: service_healthy}
     healthcheck:
