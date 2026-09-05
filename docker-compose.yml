@@ -122,7 +122,26 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
       SERVICE_FQDN_WEB_8000: https://voice.relate-ai.site
-      SERVICE_FQDN_WEB_8000_API: https://voice-api.relate-ai.site
+    depends_on:
+      livekit: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    environment:
+      VOICE_CONFIG_PATH: /app/config/voice-agent.yaml
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
+      SERVICE_FQDN_API_8000: https://voice-api.relate-ai.site
     depends_on:
       livekit: {condition: service_healthy}
     healthcheck:
