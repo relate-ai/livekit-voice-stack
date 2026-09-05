@@ -93,9 +93,20 @@ def create_app(
             finally:
                 sock.close()
 
+        def http_ok(host: str, port: int, path: str) -> dict[str, object]:
+            import urllib.request as _u
+
+            try:
+                with _u.urlopen(f"http://{host}:{port}{path}", timeout=3) as resp:
+                    return {"open": True, "status": resp.status}
+            except Exception as exc:
+                return {"open": False, "error": type(exc).__name__}
+
         return {
             "livekit_internal_7880": tcp("livekit", 7880),
+            "livekit_internal_7880_http": http_ok("livekit", 7880, "/"),
             "livekit_internal_7881": tcp("livekit", 7881),
+            "livekit_internal_7443": tcp("livekit", 443),
             "redis_internal_6379": tcp("redis", 6379),
             "host_hairpin_7881": tcp("37.60.235.136", 7881),
         }
