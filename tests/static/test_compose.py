@@ -62,3 +62,9 @@ def test_all_services_have_health_or_dependency_gates_and_log_caps():
     for service in compose["services"].values():
         assert "healthcheck" in service
         assert service["logging"]["options"] == {"max-file": "3", "max-size": "10m"}
+
+
+def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
+    compose_text = (ROOT / "docker-compose.yml").read_text()
+
+    assert ":?}" not in compose_text
