@@ -58,30 +58,15 @@ services:
       TURN_SECRET: ${TURN_SECRET:-}
     expose:
       - "3478"
-    healthcheck:
-      test: ["CMD", "turnutils_stunclient", "127.0.0.1"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
-    logging: *logging
-
-  turn-proxy:
-    image: alpine/socat@sha256:92e6a5fce38a3c16fe4f36096c95971646b849e16de4c897a6da17492400ecaf
-    command: ["TCP-LISTEN:443,fork,reuseaddr", "TCP:coturn:3478"]
-    expose:
-      - "443"
     labels:
       - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
       - "traefik.tcp.routers.livekit-turn.entrypoints=https"
       - "traefik.tcp.routers.livekit-turn.tls=true"
       - "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt"
       - "traefik.tcp.routers.livekit-turn.service=livekit-turn"
-      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443"
-    depends_on:
-      coturn: {condition: service_healthy}
+      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=3478"
     healthcheck:
-      test: ["CMD-SHELL", "echo | socat -T3 - TCP:127.0.0.1:443"]
+      test: ["CMD", "turnutils_stunclient", "127.0.0.1"]
       interval: 15s
       timeout: 5s
       retries: 10
