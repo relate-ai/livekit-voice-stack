@@ -128,6 +128,8 @@ def create_app(
             "livekit_internal_7443": tcp("livekit", 443),
             "coturn_internal_3478": tcp("coturn", 3478),
             "coturn_internal_stun": stun_binding("coturn", 3478),
+            "turn_proxy_internal_443": tcp("turn-proxy", 443),
+            "turn_proxy_internal_stun": stun_binding("turn-proxy", 443),
             "redis_internal_6379": tcp("redis", 6379),
             "host_hairpin_7881": tcp("37.60.235.136", 7881),
         }
