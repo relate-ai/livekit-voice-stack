@@ -68,3 +68,14 @@ def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
     compose_text = (ROOT / "docker-compose.yml").read_text()
 
     assert ":?}" not in compose_text
+
+
+def test_livekit_proxy_port_is_exposed_and_keys_are_configured():
+    compose = _compose()
+    livekit = compose["services"]["livekit"]
+    config = compose["configs"]["livekit"]["content"]
+
+    assert "7880" in livekit.get("expose", [])
+    assert "keys:" in config
+    assert "LIVEKIT_API_KEY" in config
+    assert "LIVEKIT_API_SECRET" in config

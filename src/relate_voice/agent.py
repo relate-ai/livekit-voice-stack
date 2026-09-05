@@ -78,28 +78,38 @@ def _register_safe_observability(session: AgentSession[Any], config: VoiceAgentC
         logger.error("session_error type=%s", type(error).__name__ if error else "unknown")
 
 
+_ACTIVE_CONFIG: VoiceAgentConfig | None = None
+_ACTIVE_ENVIRONMENT: dict[str, str] = {}
+_ACTIVE_REGISTRY: ProviderRegistry | None = None
+
+
+async def voice_session(ctx: agents.JobContext) -> None:
+    if _ACTIVE_CONFIG is None or _ACTIVE_REGISTRY is None:
+        raise RuntimeError("Voice worker is not initialised")
+    providers = _ACTIVE_REGISTRY.create_all(_ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT)
+    session = build_session(_ACTIVE_CONFIG, providers)
+    _register_safe_observability(session, _ACTIVE_CONFIG)
+    await session.start(room=ctx.room, agent=VoiceAgent(_ACTIVE_CONFIG))
+    await session.generate_reply(instructions=_ACTIVE_CONFIG.agent.greeting)
+
+
 def build_server(
     config: VoiceAgentConfig,
     environment: Mapping[str, str],
     registry: ProviderRegistry | None = None,
 ) -> AgentServer:
-    registry = registry or build_default_registry()
+    global _ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT, _ACTIVE_REGISTRY
+    _ACTIVE_CONFIG = config
+    _ACTIVE_ENVIRONMENT = dict(environment)
+    _ACTIVE_REGISTRY = registry or build_default_registry()
     server = AgentServer(
-        ws_url=environment["LIVEKIT_URL"],
-        api_key=environment["LIVEKIT_API_KEY"],
-        api_secret=environment["LIVEKIT_API_SECRET"],
+        ws_url=_ACTIVE_ENVIRONMENT["LIVEKIT_URL"],
+        api_key=_ACTIVE_ENVIRONMENT["LIVEKIT_API_KEY"],
+        api_secret=_ACTIVE_ENVIRONMENT["LIVEKIT_API_SECRET"],
         drain_timeout=300,
         num_idle_processes=1,
         prometheus_port=config.observability.prometheus_port,
         log_level=config.observability.log_level,
     )
-
-    @server.rtc_session(agent_name=config.agent.dispatch_name)
-    async def voice_session(ctx: agents.JobContext) -> None:
-        providers = registry.create_all(config, environment)
-        session = build_session(config, providers)
-        _register_safe_observability(session, config)
-        await session.start(room=ctx.room, agent=VoiceAgent(config))
-        await session.generate_reply(instructions=config.agent.greeting)
-
+    server.rtc_session(agent_name=config.agent.dispatch_name)(voice_session)
     return server
