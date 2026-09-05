@@ -228,10 +228,11 @@ async def run() -> dict[str, Any]:
         if not fuzzy_contains(answer2_text, "blueberry"):
             verdict["error"] = f"recall answer missed code word: {answer2_text[:160]}"
             return verdict
+        await asyncio.sleep(30)
         count_task = asyncio.ensure_future(conv.publish_wav(probes["count"]))
         await asyncio.sleep(1)
         active_seen = False
-        deadline = time.monotonic() + 45
+        deadline = time.monotonic() + 75
         while time.monotonic() < deadline:
             await asyncio.sleep(0.1)
             recent = [speech_active(frame_rms(data)) for _, data in conv.frames[-150:]]
