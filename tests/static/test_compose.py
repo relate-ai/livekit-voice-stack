@@ -53,8 +53,10 @@ def test_images_and_dependencies_are_pinned():
         "livekit/livekit-server@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815"
     )
     redis_image = "redis@sha256:0302cccee2b2043e61b497c8f4075467c5f7ba27a9f38be7e092634f2734baed"
+    socat_image = "alpine/socat@sha256:92e6a5fce38a3c16fe4f36096c95971646b849e16de4c897a6da17492400ecaf"
     assert livekit_image in compose_text
     assert redis_image in compose_text
+    assert socat_image in compose_text
     assert "livekit-agents==1.8.0" in requirements
 
 
@@ -72,9 +74,11 @@ def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
     assert ":?}" not in compose_text
 
 
-def test_turn_tls_route_uses_shared_443_entrypoint():
-    livekit = _compose()["services"]["livekit"]
-    labels = livekit.get("labels", [])
+def test_turn_tls_route_lives_on_dedicated_proxy_service():
+    compose = _compose()
+    livekit = compose["services"]["livekit"]
+    proxy = compose["services"]["turn-proxy"]
+    labels = proxy.get("labels", [])
 
     assert "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)" in labels
     assert "traefik.tcp.routers.livekit-turn.entrypoints=https" in labels
@@ -82,7 +86,12 @@ def test_turn_tls_route_uses_shared_443_entrypoint():
     assert "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt" in labels
     assert "traefik.tcp.routers.livekit-turn.service=livekit-turn" in labels
     assert "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443" in labels
-    assert "443" in livekit.get("expose", [])
+    assert "443" in proxy.get("expose", [])
+    assert "ports" not in proxy
+    assert not any(
+        key.startswith("traefik.tcp.routers.livekit-turn") for key in livekit.get("labels", [])
+    )
+    assert livekit.get("expose", []) == ["7880"]
 
 
 def test_embedded_turn_uses_external_tls_termination():

@@ -28,14 +28,6 @@ services:
         target: /etc/livekit.yaml
     expose:
       - "7880"
-      - "443"
-    labels:
-      - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
-      - "traefik.tcp.routers.livekit-turn.entrypoints=https"
-      - "traefik.tcp.routers.livekit-turn.tls=true"
-      - "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt"
-      - "traefik.tcp.routers.livekit-turn.service=livekit-turn"
-      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443"
     ports:
       - "7881:7881/tcp"
       - "7882:7882/udp"
@@ -46,6 +38,28 @@ services:
       interval: 10s
       timeout: 3s
       retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+  turn-proxy:
+    image: alpine/socat@sha256:92e6a5fce38a3c16fe4f36096c95971646b849e16de4c897a6da17492400ecaf
+    command: ["TCP-LISTEN:443,fork,reuseaddr", "TCP:livekit:443"]
+    expose:
+      - "443"
+    labels:
+      - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
+      - "traefik.tcp.routers.livekit-turn.entrypoints=https"
+      - "traefik.tcp.routers.livekit-turn.tls=true"
+      - "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt"
+      - "traefik.tcp.routers.livekit-turn.service=livekit-turn"
+      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443"
+    depends_on:
+      livekit: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "echo | socat -T3 - TCP:127.0.0.1:443"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
     logging: *logging
 
