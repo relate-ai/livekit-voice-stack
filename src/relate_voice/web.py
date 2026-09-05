@@ -78,6 +78,28 @@ def create_app(
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/api/diag")
+    async def diag() -> dict[str, object]:
+        import socket as _socket
+
+        def tcp(host: str, port: int) -> dict[str, object]:
+            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            sock.settimeout(3)
+            try:
+                sock.connect((host, port))
+                return {"open": True}
+            except Exception as exc:
+                return {"open": False, "error": type(exc).__name__}
+            finally:
+                sock.close()
+
+        return {
+            "livekit_internal_7880": tcp("livekit", 7880),
+            "livekit_internal_7881": tcp("livekit", 7881),
+            "redis_internal_6379": tcp("redis", 6379),
+            "host_hairpin_7881": tcp("37.60.235.136", 7881),
+        }
+
     @app.get("/", response_class=FileResponse)
     async def index(request: Request) -> FileResponse:
         result = FileResponse(static_dir / "index.html")
