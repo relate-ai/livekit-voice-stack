@@ -102,11 +102,32 @@ def create_app(
             except Exception as exc:
                 return {"open": False, "error": type(exc).__name__}
 
+        def stun_binding(host: str, port: int) -> dict[str, object]:
+            import os as _os
+            import struct as _struct
+
+            try:
+                sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+                sock.settimeout(3)
+                sock.connect((host, port))
+                txn = _os.urandom(12)
+                sock.sendall(_struct.pack("!HHI12s", 0x0001, 0, 0x2112A442, txn))
+                resp = sock.recv(32)
+                sock.close()
+                if len(resp) < 20:
+                    return {"open": False, "error": "short_response"}
+                mtype = _struct.unpack("!H", resp[:2])[0]
+                return {"open": True, "stun_binding_response": mtype == 0x0101}
+            except Exception as exc:
+                return {"open": False, "error": type(exc).__name__}
+
         return {
             "livekit_internal_7880": tcp("livekit", 7880),
             "livekit_internal_7880_http": http_ok("livekit", 7880, "/"),
             "livekit_internal_7881": tcp("livekit", 7881),
             "livekit_internal_7443": tcp("livekit", 443),
+            "coturn_internal_3478": tcp("coturn", 3478),
+            "coturn_internal_stun": stun_binding("coturn", 3478),
             "redis_internal_6379": tcp("redis", 6379),
             "host_hairpin_7881": tcp("37.60.235.136", 7881),
         }
