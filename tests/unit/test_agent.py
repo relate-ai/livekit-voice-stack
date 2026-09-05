@@ -77,7 +77,16 @@ def test_first_llm_model_is_reported_once_for_attribution():
         model_provider = "openrouter"
 
     class Metrics:
+        type = "llm_metrics"
         metadata = Metadata()
+
+    class STTMetadata:
+        model_name = "nova-3"
+        model_provider = "deepgram"
+
+    class STTMetrics:
+        type = "stt_metrics"
+        metadata = STTMetadata()
 
     class Event:
         metrics = Metrics()
@@ -87,7 +96,11 @@ def test_first_llm_model_is_reported_once_for_attribution():
 
     _register_safe_observability(FakeSession(), FakeConfig(), on_model)
 
+    class STTEvent:
+        metrics = STTMetrics()
+
     async def drive():
+        handlers["metrics_collected"](STTEvent())
         handlers["metrics_collected"](Event())
         handlers["metrics_collected"](Event())
         await asyncio.sleep(0)

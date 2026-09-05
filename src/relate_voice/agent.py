@@ -71,6 +71,8 @@ def _register_safe_observability(
     def metrics_collected(event: Any) -> None:
         nonlocal reported
         metrics = event.metrics
+        if getattr(metrics, "type", None) != "llm_metrics":
+            return
         metadata = getattr(metrics, "metadata", None)
         model = (
             getattr(metadata, "model_name", None)
