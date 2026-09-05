@@ -1,0 +1,12 @@
+FROM python@sha256:781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
+COPY pyproject.toml requirements.lock.txt ./
+COPY src ./src
+RUN pip install --no-cache-dir -r requirements.lock.txt && pip install --no-cache-dir --no-deps . && useradd --create-home --uid 10001 app
+COPY config ./config
+USER 10001
+EXPOSE 8081 9090
+ENTRYPOINT ["python", "-m", "relate_voice.main"]
+CMD ["start"]

@@ -1,0 +1,14 @@
+.deps/
+.runtime-deps/
+.lint-deps/
+.venv/
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+web/node_modules/
+web/dist/
+test-results/
+playwright-report/

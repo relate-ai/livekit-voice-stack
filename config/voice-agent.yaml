@@ -1,0 +1,63 @@
+stt:
+  provider: deepgram
+  model: nova-3
+  language: en-US
+  endpoint: https://api.deepgram.com/v1/listen
+  secret_ref: DEEPGRAM_API_KEY
+  smart_format: true
+  endpointing_ms: 300
+  mip_opt_out: true
+tts:
+  provider: deepgram
+  model: aura-2
+  voice: asteria
+  language: en
+  endpoint: https://api.deepgram.com/v1/speak
+  secret_ref: DEEPGRAM_API_KEY
+  sample_rate: 24000
+  mip_opt_out: true
+llm:
+  provider: openrouter
+  endpoint: https://openrouter.ai/api/v1
+  secret_ref: OPENROUTER_API_KEY
+  models:
+    - poolside/laguna-xs-2.1:free
+    - z-ai/glm-5.2:free
+    - cohere/north-mini-code:free
+  site_url: https://voice.relate-ai.site
+  app_name: Relate LiveKit Voice
+  temperature: 0.4
+  max_tokens: 300
+  timeout_seconds: 20
+fallback:
+  eligible_http_statuses: [429, 500, 502, 503, 504]
+  eligible_categories: [rate_limit, timeout, transient, unavailable]
+  max_attempts_per_model: 1
+turn_handling:
+  turn_detection: vad
+  endpointing:
+    min_delay_seconds: 0.5
+    max_delay_seconds: 2.0
+  interruption:
+    enabled: true
+    mode: vad
+    min_duration_seconds: 0.3
+    min_words: 0
+    resume_false_interruption: true
+    false_interruption_timeout_seconds: 1.5
+agent:
+  dispatch_name: relate-voice-agent
+  display_name: Relate Voice
+  instructions: You are a concise, warm voice assistant. Use short spoken answers without markdown.
+  greeting: Greet the user briefly and ask how you can help.
+ui:
+  public_url: https://voice.relate-ai.site
+  livekit_url: wss://livekit.relate-ai.site
+  token_ttl_seconds: 120
+  max_sessions_per_window: 10
+  rate_window_seconds: 3600
+observability:
+  log_level: INFO
+  log_model_identity: true
+  log_prompts: false
+  prometheus_port: 9090

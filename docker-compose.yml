@@ -1,0 +1,102 @@
+services:
+  redis:
+    image: redis@sha256:0302cccee2b2043e61b497c8f4075467c5f7ba27a9f38be7e092634f2734baed
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    logging: &logging
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  livekit:
+    image: livekit/livekit-server@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:?}: ${LIVEKIT_API_SECRET:?}"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      SERVICE_FQDN_LIVEKIT_7880: https://livekit.relate-ai.site
+    configs:
+      - source: livekit
+        target: /etc/livekit.yaml
+    ports:
+      - "7881:7881/tcp"
+      - "7882:7882/udp"
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:7880"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    environment:
+      VOICE_CONFIG_PATH: /app/config/voice-agent.yaml
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:?}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?}
+    depends_on:
+      livekit: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      VOICE_CONFIG_PATH: /app/config/voice-agent.yaml
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:?}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:?}
+      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:?}
+      SERVICE_FQDN_WEB_8000: https://voice.relate-ai.site
+    depends_on:
+      livekit: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging: *logging
+
+configs:
+  livekit:
+    content: |
+      port: 7880
+      bind_addresses: [0.0.0.0]
+      redis:
+        address: redis:6379
+        password: ${REDIS_PASSWORD}
+      rtc:
+        tcp_port: 7881
+        udp_port: 7882
+        use_external_ip: true
+        use_mdns: false
+      turn:
+        enabled: false
+      logging:
+        level: info
+
+volumes:
+  redis-data:

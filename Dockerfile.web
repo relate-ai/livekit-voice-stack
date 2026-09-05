@@ -1,0 +1,18 @@
+FROM node@sha256:7eb2c0c4b8cf6fd761f0e6a7fed8d3b8ad59186848f0eee59744e546f1b6a3e9 AS web-build
+WORKDIR /build
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY web ./
+RUN npm run typecheck && npm run build
+
+FROM python@sha256:781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
+WORKDIR /app
+COPY pyproject.toml requirements.lock.txt ./
+COPY src ./src
+RUN pip install --no-cache-dir -r requirements.lock.txt && pip install --no-cache-dir --no-deps . && useradd --create-home --uid 10001 app
+COPY config ./config
+COPY --from=web-build /build/dist ./web
+USER 10001
+EXPOSE 8000
+ENTRYPOINT ["python", "-m", "relate_voice.serve"]
