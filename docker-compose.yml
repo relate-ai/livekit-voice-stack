@@ -144,13 +144,13 @@ configs:
         udp_port: 7882
         use_external_ip: true
         use_mdns: false
+        turn_servers:
+          - host: turn.relate-ai.site
+            port: 443
+            protocol: tls
+            secret: ${TURN_SECRET:-}
       turn:
         enabled: false
-      turn_servers:
-        - host: turn.relate-ai.site
-          port: 443
-          protocol: tls
-          secret: ${TURN_SECRET:-}
       logging:
         level: info
 

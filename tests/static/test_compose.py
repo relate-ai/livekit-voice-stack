@@ -44,14 +44,18 @@ def test_coturn_relay_service_is_pinned_and_private():
 
 
 def test_livekit_advertises_external_tls_turn():
+    import yaml as _yaml
+
     config = _compose()["configs"]["livekit"]["content"]
+    parsed = _yaml.safe_load(config)
+    servers = parsed["rtc"]["turn_servers"]
 
     assert "turn:\n  enabled: false" in config
-    assert "turn_servers:" in config
-    assert "host: turn.relate-ai.site" in config
-    assert "port: 443" in config
-    assert "protocol: tls" in config
-    assert "secret: ${TURN_SECRET" in config
+    assert isinstance(servers, list) and len(servers) == 1
+    assert servers[0]["host"] == "turn.relate-ai.site"
+    assert servers[0]["port"] == 443
+    assert servers[0]["protocol"] == "tls"
+    assert "TURN_SECRET" in str(servers[0]["secret"])
 
 
 def test_turn_proxy_forwards_decrypted_tls_to_coturn():
