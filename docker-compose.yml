@@ -28,6 +28,14 @@ services:
         target: /etc/livekit.yaml
     expose:
       - "7880"
+      - "443"
+    labels:
+      - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
+      - "traefik.tcp.routers.livekit-turn.entrypoints=https"
+      - "traefik.tcp.routers.livekit-turn.tls=true"
+      - "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt"
+      - "traefik.tcp.routers.livekit-turn.service=livekit-turn"
+      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443"
     ports:
       - "7881:7881/tcp"
       - "7882:7882/udp"
@@ -98,7 +106,10 @@ configs:
         use_external_ip: true
         use_mdns: false
       turn:
-        enabled: false
+        enabled: true
+        domain: turn.relate-ai.site
+        tls_port: 443
+        external_tls: true
       logging:
         level: info
 

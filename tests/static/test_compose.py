@@ -18,10 +18,12 @@ def test_only_authorised_livekit_media_ports_are_published():
     assert published == ["7881:7881/tcp", "7882:7882/udp"]
 
 
-def test_turn_is_explicitly_disabled():
+def test_no_legacy_turn_relay_range_or_udp_listener():
+    compose_text = (ROOT / "docker-compose.yml").read_text()
     config = _compose()["configs"]["livekit"]["content"]
 
-    assert "turn:\n  enabled: false" in config
+    assert "relay_range" not in config
+    assert "3478" not in compose_text
 
 
 def test_private_services_are_not_routed_or_published():
@@ -68,6 +70,28 @@ def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
     compose_text = (ROOT / "docker-compose.yml").read_text()
 
     assert ":?}" not in compose_text
+
+
+def test_turn_tls_route_uses_shared_443_entrypoint():
+    livekit = _compose()["services"]["livekit"]
+    labels = livekit.get("labels", [])
+
+    assert "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)" in labels
+    assert "traefik.tcp.routers.livekit-turn.entrypoints=https" in labels
+    assert "traefik.tcp.routers.livekit-turn.tls=true" in labels
+    assert "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt" in labels
+    assert "traefik.tcp.routers.livekit-turn.service=livekit-turn" in labels
+    assert "traefik.tcp.services.livekit-turn.loadbalancer.server.port=443" in labels
+    assert "443" in livekit.get("expose", [])
+
+
+def test_embedded_turn_uses_external_tls_termination():
+    config = _compose()["configs"]["livekit"]["content"]
+
+    assert "turn:\n  enabled: true" in config
+    assert "domain: turn.relate-ai.site" in config
+    assert "tls_port: 443" in config
+    assert "external_tls: true" in config
 
 
 def test_livekit_proxy_port_is_exposed_and_keys_are_configured():
