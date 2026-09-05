@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
 from livekit import agents
@@ -51,7 +52,13 @@ def build_session(config: VoiceAgentConfig, providers: Mapping[str, Any]) -> Age
     )
 
 
-def _register_safe_observability(session: AgentSession[Any], config: VoiceAgentConfig) -> None:
+def _register_safe_observability(
+    session: AgentSession[Any],
+    config: VoiceAgentConfig,
+    on_model: Callable[[str, str], Coroutine[Any, Any, None]] | None = None,
+) -> None:
+    reported = False
+
     @session.on("agent_state_changed")
     def agent_state_changed(event: Any) -> None:
         logger.info("agent_state state=%s", event.new_state)
@@ -62,6 +69,7 @@ def _register_safe_observability(session: AgentSession[Any], config: VoiceAgentC
 
     @session.on("metrics_collected")
     def metrics_collected(event: Any) -> None:
+        nonlocal reported
         metrics = event.metrics
         model = getattr(metrics, "model_name", None) or getattr(metrics, "model", None)
         provider = getattr(metrics, "provider", None)
@@ -72,6 +80,12 @@ def _register_safe_observability(session: AgentSession[Any], config: VoiceAgentC
                 provider or "unknown",
                 model or "unknown",
             )
+        if on_model is not None and not reported and model:
+            reported = True
+            try:
+                asyncio.get_running_loop().create_task(on_model(model, provider or "unknown"))
+            except RuntimeError:
+                pass
 
     @session.on("error")
     def session_error(event: Any) -> None:
@@ -89,7 +103,16 @@ async def voice_session(ctx: agents.JobContext) -> None:
         raise RuntimeError("Voice worker is not initialised")
     providers = _ACTIVE_REGISTRY.create_all(_ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT)
     session = build_session(_ACTIVE_CONFIG, providers)
-    _register_safe_observability(session, _ACTIVE_CONFIG)
+
+    async def report_model(model: str, provider: str) -> None:
+        try:
+            await ctx.room.local_participant.set_attributes(
+                {"relate_active_llm_model": model, "relate_active_llm_provider": provider}
+            )
+        except Exception as exc:
+            logger.warning("model attribution failed: %s", type(exc).__name__)
+
+    _register_safe_observability(session, _ACTIVE_CONFIG, report_model)
     await session.start(room=ctx.room, agent=VoiceAgent(_ACTIVE_CONFIG))
     await session.generate_reply(instructions=_ACTIVE_CONFIG.agent.greeting)
 

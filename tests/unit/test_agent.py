@@ -52,6 +52,49 @@ def test_worker_uses_thread_executor_and_top_level_entrypoint(config_path):
     assert "<locals>" not in voice_session.__qualname__
 
 
+def test_first_llm_model_is_reported_once_for_attribution():
+    import asyncio
+
+    from relate_voice.agent import _register_safe_observability
+
+    handlers = {}
+
+    class FakeSession:
+        def on(self, event):
+            def wrap(func):
+                handlers[event] = func
+                return func
+
+            return wrap
+
+    reported = []
+
+    async def on_model(model, provider):
+        reported.append((model, provider))
+
+    class Metrics:
+        model_name = "cohere/north-mini-code:free"
+        provider = "openrouter"
+
+    class Event:
+        metrics = Metrics()
+
+    class FakeConfig:
+        observability = type("Obs", (), {"log_model_identity": True})()
+
+    _register_safe_observability(FakeSession(), FakeConfig(), on_model)
+
+    async def drive():
+        handlers["metrics_collected"](Event())
+        handlers["metrics_collected"](Event())
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+
+    asyncio.run(drive())
+
+    assert reported == [("cohere/north-mini-code:free", "openrouter")]
+
+
 def test_core_orchestration_has_no_provider_selection_branches():
     source = __import__("inspect").getsource(__import__("relate_voice.agent", fromlist=["build_session"]))
 
