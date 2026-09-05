@@ -130,6 +130,10 @@ def create_app(
             "coturn_internal_stun": stun_binding("coturn", 3478),
             "turn_proxy_internal_443": tcp("turn-proxy", 443),
             "turn_proxy_internal_stun": stun_binding("turn-proxy", 443),
+            "traefik_api_candidates": {
+                host: http_ok(host, 8080, "/api/tcp/routers")
+                for host in ("traefik", "coolify-proxy", "proxy", "reverse-proxy")
+            },
             "redis_internal_6379": tcp("redis", 6379),
             "host_hairpin_7881": tcp("37.60.235.136", 7881),
         }
