@@ -43,6 +43,12 @@ def test_coturn_relay_service_is_pinned_and_private():
     assert "TURN_SECRET:-" in compose_text
 
 
+def test_sfu_advertises_internal_candidates_for_relay_egress():
+    config = _compose()["configs"]["livekit"]["content"]
+
+    assert "advertise_internal_ip: true" in config
+
+
 def test_livekit_advertises_external_tls_turn():
     import yaml as _yaml
 

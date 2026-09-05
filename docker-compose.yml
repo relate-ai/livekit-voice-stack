@@ -129,6 +129,7 @@ configs:
         tcp_port: 7881
         udp_port: 7882
         use_external_ip: true
+        advertise_internal_ip: true
         use_mdns: false
         turn_servers:
           - host: turn.relate-ai.site
