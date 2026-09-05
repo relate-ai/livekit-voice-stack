@@ -72,9 +72,12 @@ def test_first_llm_model_is_reported_once_for_attribution():
     async def on_model(model, provider):
         reported.append((model, provider))
 
-    class Metrics:
+    class Metadata:
         model_name = "cohere/north-mini-code:free"
-        provider = "openrouter"
+        model_provider = "openrouter"
+
+    class Metrics:
+        metadata = Metadata()
 
     class Event:
         metrics = Metrics()

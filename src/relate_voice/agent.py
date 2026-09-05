@@ -71,8 +71,15 @@ def _register_safe_observability(
     def metrics_collected(event: Any) -> None:
         nonlocal reported
         metrics = event.metrics
-        model = getattr(metrics, "model_name", None) or getattr(metrics, "model", None)
-        provider = getattr(metrics, "provider", None)
+        metadata = getattr(metrics, "metadata", None)
+        model = (
+            getattr(metadata, "model_name", None)
+            or getattr(metrics, "model_name", None)
+            or getattr(metrics, "model", None)
+        )
+        provider = (
+            getattr(metadata, "model_provider", None) or getattr(metrics, "provider", None)
+        )
         if config.observability.log_model_identity:
             logger.info(
                 "provider_metrics type=%s provider=%s model=%s",

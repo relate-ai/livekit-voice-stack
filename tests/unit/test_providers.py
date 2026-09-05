@@ -2,9 +2,28 @@ from __future__ import annotations
 
 import pytest
 
-from relate_voice.config import load_config
+from relate_voice.config import AUTHORISED_OPENROUTER_MODELS, load_config
+from relate_voice.providers import openrouter as openrouter_module
 from relate_voice.providers.base import ProviderError, ProviderErrorCategory
 from relate_voice.providers.registry import ProviderRegistry, build_default_registry
+
+
+def test_openrouter_factory_reaches_only_authorised_chain(config_path, secret_environment, monkeypatch):
+    captured = {}
+
+    def capture(**kwargs):
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(openrouter_module.openai.LLM, "with_openrouter", capture)
+    config = load_config(config_path)
+
+    openrouter_module.build_llm(config.llm, secret_environment)
+
+    assert captured["model"] == AUTHORISED_OPENROUTER_MODELS[0]
+    assert captured["fallback_models"] == list(AUTHORISED_OPENROUTER_MODELS[1:])
+    assert captured["api_key"] == secret_environment["OPENROUTER_API_KEY"]
+    assert {captured["model"], *captured["fallback_models"]} <= set(AUTHORISED_OPENROUTER_MODELS)
 
 
 def test_mock_provider_extends_registry_without_orchestration_changes(config_path, secret_environment):
