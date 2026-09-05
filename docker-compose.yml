@@ -74,6 +74,23 @@ services:
     restart: unless-stopped
     logging: *logging
 
+  harness:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    entrypoint: ["python", "-m", "relate_voice.harness"]
+    environment:
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+    depends_on:
+      livekit: {condition: service_healthy}
+      agent: {condition: service_started}
+    exclude_from_hc: true
+    restart: "no"
+    logging: *logging
+
   agent:
     build:
       context: .

@@ -102,9 +102,27 @@ def test_images_and_dependencies_are_pinned():
 def test_all_services_have_health_or_dependency_gates_and_log_caps():
     compose = _compose()
 
-    for service in compose["services"].values():
-        assert "healthcheck" in service
+    for name, service in compose["services"].items():
+        if service.get("exclude_from_hc") is True:
+            continue
+        assert "healthcheck" in service, name
         assert service["logging"]["options"] == {"max-file": "3", "max-size": "10m"}
+
+
+def test_harness_is_a_scoped_one_shot_validation_service():
+    compose = _compose()
+    harness = compose["services"]["harness"]
+    environment = harness.get("environment", {})
+
+    assert harness["entrypoint"] == ["python", "-m", "relate_voice.harness"]
+    assert harness["restart"] == "no"
+    assert harness["exclude_from_hc"] is True
+    assert "ports" not in harness
+    assert not any(key.startswith("SERVICE_FQDN") for key in environment)
+    for required in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "DEEPGRAM_API_KEY"):
+        assert required in environment
+    for forbidden in ("OPENROUTER_API_KEY", "WEB_SESSION_SECRET", "REDIS_PASSWORD", "TURN_SECRET"):
+        assert forbidden not in environment
 
 
 def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
