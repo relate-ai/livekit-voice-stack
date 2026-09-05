@@ -18,12 +18,46 @@ def test_only_authorised_livekit_media_ports_are_published():
     assert published == ["7881:7881/tcp", "7882:7882/udp"]
 
 
-def test_no_legacy_turn_relay_range_or_udp_listener():
-    compose_text = (ROOT / "docker-compose.yml").read_text()
-    config = _compose()["configs"]["livekit"]["content"]
+def test_no_host_published_turn_ports_or_relay_range():
+    compose = _compose()
+    published = [port for service in compose["services"].values() for port in service.get("ports", [])]
+    config = compose["configs"]["livekit"]["content"]
 
     assert "relay_range" not in config
-    assert "3478" not in compose_text
+    assert not any("3478" in str(port) for port in published)
+
+
+def test_coturn_relay_service_is_pinned_and_private():
+    compose = _compose()
+    coturn = compose["services"]["coturn"]
+    compose_text = (ROOT / "docker-compose.yml").read_text()
+
+    assert (
+        "coturn/coturn@sha256:908d02955aee04adac06b4b04805de55ca0fda04c2677cb50efa3e8407bb4366"
+        in compose_text
+    )
+    assert "ports" not in coturn
+    assert not any(key.startswith("SERVICE_FQDN") for key in coturn.get("environment", {}))
+    assert "TURN_SECRET" in coturn.get("environment", {})
+    assert "static-auth-secret" in compose_text
+    assert "TURN_SECRET:-" in compose_text
+
+
+def test_livekit_advertises_external_tls_turn():
+    config = _compose()["configs"]["livekit"]["content"]
+
+    assert "turn:\n  enabled: false" in config
+    assert "turn_servers:" in config
+    assert "host: turn.relate-ai.site" in config
+    assert "port: 443" in config
+    assert "protocol: tls" in config
+    assert "secret: ${TURN_SECRET" in config
+
+
+def test_turn_proxy_forwards_decrypted_tls_to_coturn():
+    proxy = _compose()["services"]["turn-proxy"]
+
+    assert "TCP:coturn:3478" in proxy["command"]
 
 
 def test_private_services_are_not_routed_or_published():
@@ -54,9 +88,11 @@ def test_images_and_dependencies_are_pinned():
     )
     redis_image = "redis@sha256:0302cccee2b2043e61b497c8f4075467c5f7ba27a9f38be7e092634f2734baed"
     socat_image = "alpine/socat@sha256:92e6a5fce38a3c16fe4f36096c95971646b849e16de4c897a6da17492400ecaf"
+    coturn_image = "coturn/coturn@sha256:908d02955aee04adac06b4b04805de55ca0fda04c2677cb50efa3e8407bb4366"
     assert livekit_image in compose_text
     assert redis_image in compose_text
     assert socat_image in compose_text
+    assert coturn_image in compose_text
     assert "livekit-agents==1.8.0" in requirements
 
 
@@ -92,15 +128,6 @@ def test_turn_tls_route_lives_on_dedicated_proxy_service():
         key.startswith("traefik.tcp.routers.livekit-turn") for key in livekit.get("labels", [])
     )
     assert livekit.get("expose", []) == ["7880"]
-
-
-def test_embedded_turn_uses_external_tls_termination():
-    config = _compose()["configs"]["livekit"]["content"]
-
-    assert "turn:\n  enabled: true" in config
-    assert "domain: turn.relate-ai.site" in config
-    assert "tls_port: 443" in config
-    assert "external_tls: true" in config
 
 
 def test_livekit_proxy_port_is_exposed_and_keys_are_configured():
