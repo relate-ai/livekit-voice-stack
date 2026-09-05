@@ -113,6 +113,7 @@ def test_turn_tls_route_targets_coturn_directly():
     coturn = compose["services"]["coturn"]
     labels = coturn.get("labels", [])
 
+    assert "traefik.enable=true" in labels
     assert "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)" in labels
     assert "traefik.tcp.routers.livekit-turn.entrypoints=https" in labels
     assert "traefik.tcp.routers.livekit-turn.tls=true" in labels

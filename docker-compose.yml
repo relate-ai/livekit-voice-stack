@@ -59,6 +59,7 @@ services:
     expose:
       - "3478"
     labels:
+      - "traefik.enable=true"
       - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
       - "traefik.tcp.routers.livekit-turn.entrypoints=https"
       - "traefik.tcp.routers.livekit-turn.tls=true"
