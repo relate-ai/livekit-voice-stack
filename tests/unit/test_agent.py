@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from relate_voice.agent import build_session
+from livekit.agents import JobExecutorType
+
+from relate_voice.agent import build_server, build_session, voice_session
 from relate_voice.config import load_config
 
 
@@ -33,6 +35,21 @@ def test_session_receives_injected_providers_and_configured_turn_handling(config
             "false_interruption_timeout": 1.5,
         },
     }
+
+
+def test_worker_uses_thread_executor_and_top_level_entrypoint(config_path):
+    config = load_config(config_path)
+    environment = {
+        "LIVEKIT_URL": "ws://localhost:7880",
+        "LIVEKIT_API_KEY": "key",
+        "LIVEKIT_API_SECRET": "secret",
+    }
+
+    server = build_server(config, environment)
+
+    assert server._job_executor_type is JobExecutorType.THREAD
+    assert voice_session.__module__ == "relate_voice.agent"
+    assert "<locals>" not in voice_session.__qualname__
 
 
 def test_core_orchestration_has_no_provider_selection_branches():

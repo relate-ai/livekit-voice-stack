@@ -11,6 +11,7 @@ from livekit.agents import (
     AgentSession,
     EndpointingOptions,
     InterruptionOptions,
+    JobExecutorType,
     TurnHandlingOptions,
 )
 
@@ -107,6 +108,7 @@ def build_server(
         api_key=_ACTIVE_ENVIRONMENT["LIVEKIT_API_KEY"],
         api_secret=_ACTIVE_ENVIRONMENT["LIVEKIT_API_SECRET"],
         drain_timeout=300,
+        job_executor_type=JobExecutorType.THREAD,
         num_idle_processes=1,
         prometheus_port=config.observability.prometheus_port,
         log_level=config.observability.log_level,
