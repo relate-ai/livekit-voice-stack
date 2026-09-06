@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import Callable, Coroutine, Mapping
 from typing import Any
 
@@ -19,10 +20,47 @@ from livekit.agents import (
 )
 from livekit.agents import inference
 
+from relate_voice.agent_store import AgentStore, AgentPackage
 from relate_voice.config import VoiceAgentConfig
 from relate_voice.providers.registry import ProviderRegistry, build_default_registry
 
 logger = logging.getLogger("relate_voice.agent")
+
+
+def _resolve_config_from_agent(
+    pkg: AgentPackage, base_config: VoiceAgentConfig
+) -> VoiceAgentConfig:
+    """Build a VoiceAgentConfig from an AgentPackage, falling back to base_config for missing refs."""
+    from relate_voice.agent_store import LLMProviderConfig
+    data = base_config.model_dump()
+    # Override LLM
+    data["llm"]["provider"] = pkg.llm.provider
+    data["llm"]["models"] = [pkg.llm.model]
+    data["llm"]["temperature"] = pkg.llm.temperature
+    data["llm"]["max_tokens"] = pkg.llm.max_tokens
+    data["llm"]["timeout_seconds"] = pkg.llm.timeout_seconds
+    # Override agent instructions/greeting
+    data["agent"]["instructions"] = pkg.personality
+    data["agent"]["greeting"] = pkg.greeting
+    # Override speech
+    data["stt"]["provider"] = pkg.speech.stt_provider
+    data["stt"]["model"] = pkg.speech.stt_model
+    data["stt"]["language"] = pkg.speech.stt_language
+    data["tts"]["provider"] = pkg.speech.tts_provider
+    data["tts"]["model"] = pkg.speech.tts_model
+    data["tts"]["voice"] = pkg.speech.tts_voice
+    data["tts"]["language"] = pkg.speech.tts_language
+    # Override turn handling
+    data["turn_handling"]["turn_detection"] = pkg.turn_handling.turn_detection
+    data["turn_handling"]["endpointing"]["min_delay_seconds"] = pkg.turn_handling.endpointing_min_delay
+    data["turn_handling"]["endpointing"]["max_delay_seconds"] = pkg.turn_handling.endpointing_max_delay
+    data["turn_handling"]["interruption"]["enabled"] = pkg.turn_handling.interruption_enabled
+    data["turn_handling"]["interruption"]["mode"] = pkg.turn_handling.interruption_mode
+    data["turn_handling"]["interruption"]["min_duration_seconds"] = pkg.turn_handling.interruption_min_duration
+    data["turn_handling"]["preemptive_generation"]["enabled"] = pkg.turn_handling.preemptive_generation
+    data["turn_handling"]["user_turn_limit"]["max_words"] = pkg.turn_handling.user_turn_max_words
+    data["turn_handling"]["user_turn_limit"]["max_duration"] = pkg.turn_handling.user_turn_max_duration
+    return VoiceAgentConfig.model_validate(data)
 
 
 class VoiceAgent(Agent):
@@ -130,25 +168,39 @@ def _register_safe_observability(
 _ACTIVE_CONFIG: VoiceAgentConfig | None = None
 _ACTIVE_ENVIRONMENT: dict[str, str] = {}
 _ACTIVE_REGISTRY: ProviderRegistry | None = None
+_AGENT_STORE: AgentStore | None = None
 
 
 async def voice_session(ctx: agents.JobContext) -> None:
     if _ACTIVE_CONFIG is None or _ACTIVE_REGISTRY is None:
         raise RuntimeError("Voice worker is not initialised")
-    providers = _ACTIVE_REGISTRY.create_all(_ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT)
-    session = build_session(_ACTIVE_CONFIG, providers)
+
+    # Check for active agent in store
+    config = _ACTIVE_CONFIG
+    if _AGENT_STORE is not None:
+        active = _AGENT_STORE.get_active_agent()
+        if active:
+            logger.info("Using active agent: %s v%s (llm=%s/%s)", active.agent_id, active.version, active.llm.provider, active.llm.model)
+            config = _resolve_config_from_agent(active, _ACTIVE_CONFIG)
+
+    providers = _ACTIVE_REGISTRY.create_all(config, _ACTIVE_ENVIRONMENT)
+    session = build_session(config, providers)
 
     async def report_model(model: str, provider: str) -> None:
         try:
-            await ctx.room.local_participant.set_attributes(
-                {"relate_active_llm_model": model, "relate_active_llm_provider": provider}
-            )
+            attrs = {"relate_active_llm_model": model, "relate_active_llm_provider": provider}
+            if _AGENT_STORE is not None:
+                active = _AGENT_STORE.get_active_agent()
+                if active:
+                    attrs["relate_agent_id"] = active.agent_id
+                    attrs["relate_agent_version"] = active.version
+            await ctx.room.local_participant.set_attributes(attrs)
         except Exception as exc:
             logger.warning("model attribution failed: %s", type(exc).__name__)
 
-    _register_safe_observability(session, _ACTIVE_CONFIG, report_model)
-    await session.start(room=ctx.room, agent=VoiceAgent(_ACTIVE_CONFIG))
-    await session.generate_reply(instructions=_ACTIVE_CONFIG.agent.greeting)
+    _register_safe_observability(session, config, report_model)
+    await session.start(room=ctx.room, agent=VoiceAgent(config))
+    await session.generate_reply(instructions=config.agent.greeting)
 
 
 def build_server(
@@ -156,10 +208,11 @@ def build_server(
     environment: Mapping[str, str],
     registry: ProviderRegistry | None = None,
 ) -> AgentServer:
-    global _ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT, _ACTIVE_REGISTRY
+    global _ACTIVE_CONFIG, _ACTIVE_ENVIRONMENT, _ACTIVE_REGISTRY, _AGENT_STORE
     _ACTIVE_CONFIG = config
     _ACTIVE_ENVIRONMENT = dict(environment)
     _ACTIVE_REGISTRY = registry or build_default_registry()
+    _AGENT_STORE = AgentStore(os.environ.get("AGENT_STORE_PATH", "/data/agents"))
     server = AgentServer(
         ws_url=_ACTIVE_ENVIRONMENT["LIVEKIT_URL"],
         api_key=_ACTIVE_ENVIRONMENT["LIVEKIT_API_KEY"],

@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from relate_voice.config import VoiceAgentConfig
-from relate_voice.providers import deepgram, openrouter
+from relate_voice.providers import deepgram, gemini, openrouter
 
 Factory = Callable[[Any, Mapping[str, str]], Any]
 
@@ -37,4 +37,5 @@ def build_default_registry() -> ProviderRegistry:
     registry.register("stt", "deepgram", deepgram.build_stt)
     registry.register("tts", "deepgram", deepgram.build_tts)
     registry.register("llm", "openrouter", openrouter.build_llm)
+    registry.register("llm", "gemini", gemini.build_llm)
     return registry

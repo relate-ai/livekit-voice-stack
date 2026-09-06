@@ -1,96 +1,118 @@
 services:
   redis:
     image: redis@sha256:0302cccee2b2043e61b497c8f4075467c5f7ba27a9f38be7e092634f2734baed
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-}"]
+    command:
+    - redis-server
+    - --appendonly
+    - 'yes'
+    - --requirepass
+    - ${REDIS_PASSWORD:-}
     environment:
       REDISCLI_AUTH: ${REDIS_PASSWORD:-}
     volumes:
-      - redis-data:/data
+    - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 10s
       timeout: 3s
       retries: 10
     restart: unless-stopped
-    logging: &logging
+    logging: &id001
       driver: json-file
-      options: {max-size: "10m", max-file: "3"}
-
+      options:
+        max-size: 10m
+        max-file: '3'
   livekit:
     image: livekit/livekit-server@sha256:e37d68f172556d02aa77968b9fc55ef481468c0315fa38e4fa6c56ce72e3a815
-    command: ["--config", "/etc/livekit.yaml"]
+    command:
+    - --config
+    - /etc/livekit.yaml
     environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-}: ${LIVEKIT_API_SECRET:-}"
+      LIVEKIT_KEYS: '${LIVEKIT_API_KEY:-}: ${LIVEKIT_API_SECRET:-}'
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       SERVICE_FQDN_LIVEKIT_7880: https://livekit.relate-ai.site
     configs:
-      - source: livekit
-        target: /etc/livekit.yaml
+    - source: livekit
+      target: /etc/livekit.yaml
     expose:
-      - "7880"
+    - '7880'
     ports:
-      - "7881:7881/tcp"
-      - "7882:7882/udp"
+    - 7881:7881/tcp
+    - 7882:7882/udp
     depends_on:
-      redis: {condition: service_healthy}
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:7880"]
+      test:
+      - CMD
+      - wget
+      - --spider
+      - -q
+      - http://127.0.0.1:7880
       interval: 10s
       timeout: 3s
       retries: 15
     restart: unless-stopped
-    logging: *logging
-
+    logging: *id001
   coturn:
     image: coturn/coturn@sha256:908d02955aee04adac06b4b04805de55ca0fda04c2677cb50efa3e8407bb4366
     command:
-      - "-n"
-      - "--listening-port=3478"
-      - "--fingerprint"
-      - "--realm=relate-ai.site"
-      - "--static-auth-secret=${TURN_SECRET:-}"
-      - "--allow-loopback-peers"
-      - "--allowed-peer-ip=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
-      - "--no-tls"
-      - "--no-dtls"
-      - "--no-cli"
+    - -n
+    - --listening-port=3478
+    - --fingerprint
+    - --realm=relate-ai.site
+    - --static-auth-secret=${TURN_SECRET:-}
+    - --allow-loopback-peers
+    - --allowed-peer-ip=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    - --no-tls
+    - --no-dtls
+    - --no-cli
     environment:
       TURN_SECRET: ${TURN_SECRET:-}
     expose:
-      - "3478"
+    - '3478'
     labels:
-      - "traefik.enable=true"
-      - "traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)"
-      - "traefik.tcp.routers.livekit-turn.entrypoints=https"
-      - "traefik.tcp.routers.livekit-turn.tls=true"
-      - "traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt"
-      - "traefik.tcp.routers.livekit-turn.service=livekit-turn"
-      - "traefik.tcp.services.livekit-turn.loadbalancer.server.port=3478"
+    - traefik.enable=true
+    - traefik.tcp.routers.livekit-turn.rule=HostSNI(`turn.relate-ai.site`)
+    - traefik.tcp.routers.livekit-turn.entrypoints=https
+    - traefik.tcp.routers.livekit-turn.tls=true
+    - traefik.tcp.routers.livekit-turn.tls.certresolver=letsencrypt
+    - traefik.tcp.routers.livekit-turn.service=livekit-turn
+    - traefik.tcp.services.livekit-turn.loadbalancer.server.port=3478
     healthcheck:
-      test: ["CMD", "turnutils_stunclient", "127.0.0.1"]
+      test:
+      - CMD
+      - turnutils_stunclient
+      - 127.0.0.1
       interval: 15s
       timeout: 5s
       retries: 10
     restart: unless-stopped
-    logging: *logging
-
+    logging: *id001
   harness:
     build:
       context: .
       dockerfile: Dockerfile.agent
-    entrypoint: ["python", "-m", "relate_voice.harness"]
+    entrypoint:
+    - python
+    - -m
+    - relate_voice.harness
     environment:
       LIVEKIT_URL: ws://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
     depends_on:
-      livekit: {condition: service_healthy}
-      agent: {condition: service_started}
+      livekit:
+        condition: service_healthy
+      agent:
+        condition: service_started
     exclude_from_hc: true
-    restart: "no"
-    logging: *logging
-
+    restart: 'no'
+    logging: *id001
   agent:
     build:
       context: .
@@ -102,16 +124,21 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
-      livekit: {condition: service_healthy}
+      livekit:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081', timeout=2)"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081', timeout=2)
       interval: 15s
       timeout: 3s
       retries: 15
     restart: unless-stopped
-    logging: *logging
-
+    logging: *id001
   web:
     build:
       context: .
@@ -122,16 +149,24 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
       SERVICE_FQDN_WEB_8000: https://voice.relate-ai.site
+      AGENT_STORE_PATH: /data/agents
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
-      livekit: {condition: service_healthy}
+      livekit:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz',
+        timeout=2)
       interval: 10s
       timeout: 3s
       retries: 15
     restart: unless-stopped
-    logging: *logging
-
+    logging: *id001
   api:
     build:
       context: .
@@ -142,43 +177,33 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
       SERVICE_FQDN_API_8000: https://voice-api.relate-ai.site
+      AGENT_STORE_PATH: /data/agents
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     expose:
-      - "8000"
+    - '8000'
     depends_on:
-      livekit: {condition: service_healthy}
+      livekit:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/healthz"]
+      test:
+      - CMD
+      - wget
+      - --spider
+      - -q
+      - http://127.0.0.1:8000/healthz
       interval: 10s
       timeout: 3s
       retries: 15
     restart: unless-stopped
-    logging: *logging
-
+    logging: *id001
 configs:
   livekit:
-    content: |
-      port: 7880
-      bind_addresses: [0.0.0.0]
-      keys:
-        ${LIVEKIT_API_KEY:-}: ${LIVEKIT_API_SECRET:-}
-      redis:
-        address: redis:6379
-        password: ${REDIS_PASSWORD:-}
-      rtc:
-        tcp_port: 7881
-        udp_port: 7882
-        use_external_ip: true
-        advertise_internal_ip: true
-        use_mdns: false
-        turn_servers:
-          - host: turn.relate-ai.site
-            port: 443
-            protocol: tls
-            secret: ${TURN_SECRET:-}
-      turn:
-        enabled: false
-      logging:
-        level: info
-
+    content: "port: 7880\nbind_addresses: [0.0.0.0]\nkeys:\n  ${LIVEKIT_API_KEY:-}:\
+      \ ${LIVEKIT_API_SECRET:-}\nredis:\n  address: redis:6379\n  password: ${REDIS_PASSWORD:-}\n\
+      rtc:\n  tcp_port: 7881\n  udp_port: 7882\n  use_external_ip: true\n  advertise_internal_ip:\
+      \ true\n  use_mdns: false\n  turn_servers:\n    - host: turn.relate-ai.site\n\
+      \      port: 443\n      protocol: tls\n      secret: ${TURN_SECRET:-}\nturn:\n\
+      \  enabled: false\nlogging:\n  level: info\n"
 volumes:
-  redis-data:
+  redis-data: null
