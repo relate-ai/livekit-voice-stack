@@ -153,7 +153,7 @@ def create_app(
                 _cookie_value(session_secret),
                 httponly=True,
                 secure=True,
-                samesite="strict",
+                samesite="none",
                 max_age=config.ui.rate_window_seconds,
                 path="/",
             )
@@ -169,12 +169,10 @@ def create_app(
     async def create_session(request: Request) -> SessionResponse:
         if request.headers.get("origin") != config.ui.public_url:
             raise HTTPException(status_code=403, detail="Forbidden")
-        cookie = request.cookies.get(COOKIE_NAME)
-        if cookie is None or not _valid_cookie(cookie, session_secret):
-            raise HTTPException(status_code=403, detail="Forbidden")
+        client_id = request.headers.get("origin", "unknown")
 
         now = time.monotonic()
-        window = request_times[cookie]
+        window = request_times[client_id]
         while window and now - window[0] > config.ui.rate_window_seconds:
             window.popleft()
         if len(window) >= config.ui.max_sessions_per_window:
