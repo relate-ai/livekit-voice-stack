@@ -66,23 +66,37 @@ class FallbackConfig(StrictModel):
 
 
 class EndpointingConfig(StrictModel):
-    min_delay_seconds: float = Field(ge=0.1, le=3)
-    max_delay_seconds: float = Field(ge=0.2, le=5)
+    min_delay_seconds: float = Field(default=0.5, ge=0.1, le=3)
+    max_delay_seconds: float = Field(default=3.0, ge=0.2, le=5)
 
 
 class InterruptionConfig(StrictModel):
-    enabled: bool
-    mode: Literal["adaptive", "vad"]
-    min_duration_seconds: float = Field(ge=0.05, le=2)
-    min_words: int = Field(ge=0, le=10)
-    resume_false_interruption: bool
-    false_interruption_timeout_seconds: float = Field(ge=0.1, le=5)
+    enabled: bool = True
+    mode: Literal["adaptive", "vad"] = "vad"
+    min_duration_seconds: float = Field(default=0.5, ge=0.05, le=2)
+    min_words: int = Field(default=0, ge=0, le=10)
+    resume_false_interruption: bool = True
+    false_interruption_timeout_seconds: float = Field(default=2.0, ge=0.1, le=5)
+
+
+class PreemptiveGenerationConfig(StrictModel):
+    enabled: bool = True
+    preemptive_tts: bool = False
+    max_speech_duration: float = Field(default=10.0, gt=0, le=30)
+    max_retries: int = Field(default=3, ge=1, le=5)
+
+
+class UserTurnLimitConfig(StrictModel):
+    max_words: int | None = Field(default=None, ge=10, le=500)
+    max_duration: float | None = Field(default=None, ge=5, le=120)
 
 
 class TurnHandlingConfig(StrictModel):
-    turn_detection: Literal["stt", "vad", "realtime_llm", "manual"]
-    endpointing: EndpointingConfig
-    interruption: InterruptionConfig
+    turn_detection: Literal["stt", "vad", "realtime_llm", "manual", "turn_detector"] = "turn_detector"
+    endpointing: EndpointingConfig = EndpointingConfig()
+    interruption: InterruptionConfig = InterruptionConfig()
+    preemptive_generation: PreemptiveGenerationConfig = PreemptiveGenerationConfig()
+    user_turn_limit: UserTurnLimitConfig = UserTurnLimitConfig()
 
 
 class AgentConfig(StrictModel):

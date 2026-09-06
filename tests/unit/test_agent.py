@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from livekit.agents import JobExecutorType
+from livekit.agents.inference import TurnDetector
 
 from relate_voice.agent import build_server, build_session, voice_session
 from relate_voice.config import load_config
@@ -23,17 +24,21 @@ def test_session_receives_injected_providers_and_configured_turn_handling(config
     assert captured["stt"] is providers["stt"]
     assert captured["tts"] is providers["tts"]
     assert captured["llm"] is providers["llm"]
-    assert captured["turn_handling"] == {
-        "turn_detection": "vad",
-        "endpointing": {"min_delay": 0.5, "max_delay": 2.0},
-        "interruption": {
-            "enabled": True,
-            "mode": "vad",
-            "min_duration": 0.3,
-            "min_words": 0,
-            "resume_false_interruption": True,
-            "false_interruption_timeout": 1.5,
-        },
+    assert isinstance(captured["turn_handling"]["turn_detection"], TurnDetector)
+    assert captured["turn_handling"]["endpointing"] == {"min_delay": 0.5, "max_delay": 3.0}
+    assert captured["turn_handling"]["interruption"] == {
+        "enabled": True,
+        "mode": "vad",
+        "min_duration": 0.5,
+        "min_words": 0,
+        "resume_false_interruption": True,
+        "false_interruption_timeout": 2.0,
+    }
+    assert captured["turn_handling"]["preemptive_generation"] == {
+        "enabled": True,
+        "preemptive_tts": False,
+        "max_speech_duration": 10.0,
+        "max_retries": 3,
     }
 
 

@@ -34,22 +34,37 @@ fallback:
   eligible_categories: [rate_limit, timeout, transient, unavailable]
   max_attempts_per_model: 1
 turn_handling:
-  turn_detection: vad
+  turn_detection: turn_detector
   endpointing:
     min_delay_seconds: 0.5
-    max_delay_seconds: 2.0
+    max_delay_seconds: 3.0
   interruption:
     enabled: true
     mode: vad
-    min_duration_seconds: 0.3
+    min_duration_seconds: 0.5
     min_words: 0
     resume_false_interruption: true
-    false_interruption_timeout_seconds: 1.5
+    false_interruption_timeout_seconds: 2.0
+  preemptive_generation:
+    enabled: true
+    preemptive_tts: false
+    max_speech_duration: 10.0
+    max_retries: 3
+  user_turn_limit:
+    max_words: 200
+    max_duration: 60.0
 agent:
   dispatch_name: relate-voice-agent
   display_name: Relate Voice
-  instructions: You are a concise, warm voice assistant. Use short spoken answers without markdown.
-  greeting: Greet the user briefly and ask how you can help.
+  instructions: >
+    You are a warm, helpful voice assistant. Speak naturally and conversationally.
+    Keep responses concise — aim for 1 to 3 sentences unless the user asks for detail.
+    Use plain spoken language. Never use markdown, bullet points, asterisks, or formatting.
+    If you need time to think, say something brief like "let me check" rather than staying silent.
+    If you don't understand, ask the user to clarify rather than guessing.
+    Never fabricate information. If you're unsure, say so honestly.
+    Address the user by name only if they've introduced themselves.
+  greeting: Hello! I'm your voice assistant. How can I help you today?
 ui:
   public_url: https://voice.relate-ai.site
   livekit_url: wss://livekit.relate-ai.site

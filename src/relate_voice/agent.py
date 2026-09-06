@@ -13,8 +13,11 @@ from livekit.agents import (
     EndpointingOptions,
     InterruptionOptions,
     JobExecutorType,
+    PreemptiveGenerationOptions,
     TurnHandlingOptions,
+    UserTurnLimitOptions,
 )
+from livekit.agents import inference
 
 from relate_voice.config import VoiceAgentConfig
 from relate_voice.providers.registry import ProviderRegistry, build_default_registry
@@ -30,12 +33,20 @@ class VoiceAgent(Agent):
 def build_session(config: VoiceAgentConfig, providers: Mapping[str, Any]) -> AgentSession[Any]:
     interruption = config.turn_handling.interruption
     endpointing = config.turn_handling.endpointing
-    return AgentSession(
+    preemptive = config.turn_handling.preemptive_generation
+    turn_limit = config.turn_handling.user_turn_limit
+
+    if config.turn_handling.turn_detection == "turn_detector":
+        turn_detection: Any = inference.TurnDetector()
+    else:
+        turn_detection = config.turn_handling.turn_detection
+
+    session_kwargs: dict[str, Any] = dict(
         stt=providers["stt"],
         llm=providers["llm"],
         tts=providers["tts"],
         turn_handling=TurnHandlingOptions(
-            turn_detection=config.turn_handling.turn_detection,
+            turn_detection=turn_detection,
             endpointing=EndpointingOptions(
                 min_delay=endpointing.min_delay_seconds,
                 max_delay=endpointing.max_delay_seconds,
@@ -48,8 +59,22 @@ def build_session(config: VoiceAgentConfig, providers: Mapping[str, Any]) -> Age
                 resume_false_interruption=interruption.resume_false_interruption,
                 false_interruption_timeout=interruption.false_interruption_timeout_seconds,
             ),
+            preemptive_generation=PreemptiveGenerationOptions(
+                enabled=preemptive.enabled,
+                preemptive_tts=preemptive.preemptive_tts,
+                max_speech_duration=preemptive.max_speech_duration,
+                max_retries=preemptive.max_retries,
+            ),
         ),
     )
+
+    if turn_limit.max_words is not None or turn_limit.max_duration is not None:
+        session_kwargs["turn_handling"]["user_turn_limit"] = UserTurnLimitOptions(
+            max_words=turn_limit.max_words,
+            max_duration=turn_limit.max_duration,
+        )
+
+    return AgentSession(**session_kwargs)
 
 
 def _register_safe_observability(
