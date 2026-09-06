@@ -166,36 +166,6 @@ services:
       retries: 15
     restart: unless-stopped
     logging: *id001
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    environment:
-      VOICE_CONFIG_PATH: /app/config/voice-agent.yaml
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
-      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
-      SERVICE_FQDN_API_8000: https://voice-api.relate-ai.site
-      AGENT_STORE_PATH: /data/agents
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-    expose:
-    - '8000'
-    depends_on:
-      livekit:
-        condition: service_healthy
-    healthcheck:
-      test:
-      - CMD
-      - wget
-      - --spider
-      - -q
-      - http://127.0.0.1:8000/healthz
-      interval: 10s
-      timeout: 3s
-      retries: 15
-    restart: unless-stopped
-    logging: *id001
 configs:
   livekit:
     content: "port: 7880\nbind_addresses: [0.0.0.0]\nkeys:\n  ${LIVEKIT_API_KEY:-}:\
