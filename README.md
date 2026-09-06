@@ -71,7 +71,10 @@ environment-variable NAME only.
 |---|---|
 | `INSTALL.md` | **Full from-scratch installation guide** (bare VPS → working deploy) |
 | `ARCHITECTURE.md` | Topology, media path, conversation flow, domain routing |
-| `CONFIGURATION.md` | Config schema, all settings, provider options |
+| `VERSION.md` | Complete version inventory (every dependency, runtime, infra) |
+| `EXTENSION_POINTS.md` | **How to modify everything** (persona, providers, tools, UI) |
+| `CHANGELOG.md` | Release history and known limitations |
+| `CONFIGURATION.md` | Config schema, all settings, constraints, provider options |
 | `COOLIFY_DEPLOYMENT.md` | Coolify setup, DNS, secrets, reproducing |
 | `OPERATIONS.md` | Day-to-day operations, monitoring, troubleshooting |
 | `PROVIDERS.md` | STT/TTS/LLM provider details and fallback chain |
