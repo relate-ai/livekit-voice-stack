@@ -39,6 +39,9 @@ conversation flow, and domain routing.
 
 ## Quick Start (Operator)
 
+**New install?** Follow [INSTALL.md](INSTALL.md) for the complete
+from-scratch procedure (Coolify setup, DNS, secrets, deployment, verification).
+
 1. Ensure Coolify environment variables are set (names in `.env.example`).
    Secrets live ONLY in Coolify; never in git.
 2. Deploy backend through Coolify (Docker Compose build pack, `main` branch).
@@ -66,7 +69,8 @@ environment-variable NAME only.
 
 | File | Contents |
 |---|---|
-| `ARCHITECTURE.md` | Full topology, media path, conversation flow, domain routing |
+| `INSTALL.md` | **Full from-scratch installation guide** (bare VPS → working deploy) |
+| `ARCHITECTURE.md` | Topology, media path, conversation flow, domain routing |
 | `CONFIGURATION.md` | Config schema, all settings, provider options |
 | `COOLIFY_DEPLOYMENT.md` | Coolify setup, DNS, secrets, reproducing |
 | `OPERATIONS.md` | Day-to-day operations, monitoring, troubleshooting |
