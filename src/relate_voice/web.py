@@ -12,6 +12,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from livekit import api
 from pydantic import BaseModel, ConfigDict
@@ -57,6 +58,13 @@ def create_app(
     session_secret = environment["WEB_SESSION_SECRET"]
     request_times: dict[str, deque[float]] = defaultdict(deque)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[config.ui.public_url],
+        allow_credentials=True,
+        allow_methods=["POST"],
+        allow_headers=["*"],
+    )
 
     @app.middleware("http")
     async def security_headers(
@@ -64,7 +72,7 @@ def create_app(
     ) -> Response:
         response = await call_next(request)
         response.headers["Content-Security-Policy"] = (
-            f"default-src 'self'; connect-src 'self' {config.ui.livekit_url}; "
+            f"default-src 'self'; connect-src 'self' {config.ui.livekit_url} {config.ui.public_url}; "
             "media-src 'self' blob:; img-src 'self' data:; style-src 'self'; script-src 'self'"
         )
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
