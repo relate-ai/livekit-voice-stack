@@ -32,8 +32,7 @@ conversation flow, and domain routing.
 | `livekit` | LiveKit Server v1.13.6 (signalling/API) | `https://livekit.relate-ai.site` |
 | `redis` | Private state store (AOF persisted) | none |
 | `agent` | Python voice worker (Deepgram + OpenRouter) | none |
-| `web` | Token/session gateway (FastAPI) | `https://voice-api.relate-ai.site` |
-| `api` | Dedicated API service (FastAPI) | internal |
+| `api` | Token/session and agent-management gateway (FastAPI) | `https://voice-api.relate-ai.site` |
 | `coturn` | TURN relay (TLS terminated at Traefik) | `turns:turn.relate-ai.site:443` |
 | `harness` | One-shot scripted conversation validation | none (exits after deploy) |
 
@@ -42,7 +41,8 @@ conversation flow, and domain routing.
 **New install?** Follow [INSTALL.md](INSTALL.md) for the complete
 from-scratch procedure (Coolify setup, DNS, secrets, deployment, verification).
 
-1. Ensure Coolify environment variables are set (names in `.env.example`).
+1. Ensure Coolify environment variables are set (names in `.env.example` and
+   `COOLIFY_DEPLOYMENT.md`).
    Secrets live ONLY in Coolify; never in git.
 2. Deploy backend through Coolify (Docker Compose build pack, `main` branch).
 3. Deploy frontend through Coolify (Dockerfile build pack, `main` branch).

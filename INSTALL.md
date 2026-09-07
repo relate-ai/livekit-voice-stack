@@ -185,10 +185,14 @@ OPENROUTER_API_KEY="YOUR_OPENROUTER_KEY_HERE"
 3. Go to **Domains** section
 4. Add domain for `livekit` service:
    - Service: `livekit`
-   - Domain: `https://livekit.relate-ai.site`
-5. Add domain for `web` service:
-   - Service: `web`
-   - Domain: `https://voice-api.relate-ai.site`
+   - Domain: `https://livekit.relate-ai.site:7880`
+5. Add domain for `api` service:
+   - Service: `api`
+   - Domain: `https://voice-api.relate-ai.site:8000`
+
+Coolify uses the suffix as the container target port and exposes the domains
+through its normal HTTPS entrypoint. Do not add Traefik HTTP labels or fixed
+`SERVICE_FQDN_*` values to Compose.
 
 ### 5.4 Set Environment Variables
 
@@ -203,6 +207,8 @@ Go to **Configuration** → **Environment Variables** and add:
 | `REDIS_PASSWORD` | (from Step 4) |
 | `TURN_SECRET` | (from Step 4) |
 | `WEB_SESSION_SECRET` | (from Step 4) |
+| `VOICE_PUBLIC_URL` | `https://voice.relate-ai.site` |
+| `LIVEKIT_PUBLIC_URL` | `wss://livekit.relate-ai.site` |
 
 **Important:** These are Coolify runtime variables. Set them as
 "Shown on creation" or "Persistent" — never as "Build time".
@@ -211,8 +217,8 @@ Go to **Configuration** → **Environment Variables** and add:
 
 1. Click **Deploy** (or **Start**)
 2. Wait for build to complete (first build takes 3–5 minutes)
-3. All 7 containers should show as healthy:
-   - `redis`, `livekit`, `coturn`, `agent`, `web`, `api`
+3. All five long-running containers should show as healthy:
+   - `redis`, `livekit`, `coturn`, `agent`, `api`
    - `harness` runs once and exits (this is normal)
 
 ---
@@ -240,6 +246,8 @@ Go to **Configuration** → **Environment Variables** and add:
 2. Set **Port** to `8080`
 3. Go to **Domains** section
 4. Add domain: `https://voice.relate-ai.site`
+5. Add runtime environment variable:
+   - `VOICE_API_URL=https://voice-api.relate-ai.site`
 
 ### 6.4 Deploy
 

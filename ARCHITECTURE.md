@@ -2,7 +2,7 @@
 
 ## Overview
 
-Two independent Coolify applications on a single Contabo VPS (`37.60.235.136`):
+Two independent Coolify applications on one VPS:
 
 1. **Relate Voice UI** — static frontend served by nginx
 2. **Relate LiveKit Voice** — backend stack (LiveKit, agent, gateway, TURN, Redis)
@@ -27,25 +27,24 @@ flowchart LR
 
 ## Service Map
 
-### Frontend (Coolify Web Apps — `ps7z244qvspp3by5sdlcrlc8`)
+### Frontend (Coolify Web Apps)
 
 | Container | Role | Public route |
 |---|---|---|
-| `voice-ui-*` | nginx serving static SPA + reverse proxy assets | `https://voice.relate-ai.site` |
+| `voice-ui` | nginx serving static SPA | `https://voice.relate-ai.site` |
 
 - Built from `relate-ai/relate-voice-ui` (Dockerfile: multi-stage node build → nginx)
-- Calls backend API directly at `voice-api.relate-ai.site` (CORS enabled)
+- Loads the backend API origin from Coolify runtime configuration (CORS enabled)
 - No secrets, no backend logic, no LiveKit dependency
 
-### Backend (Coolify AI Agents — `xa0mj8kgd9ydkzg89pzdgz13`)
+### Backend (Coolify AI Agents)
 
 | Service | Role | Public route |
 |---|---|---|
 | `livekit` | LiveKit Server v1.13.6 (signalling/API) | `https://livekit.relate-ai.site` |
 | `redis` | Private state store (AOF persisted) | none |
 | `agent` | Python voice worker (Deepgram + OpenRouter) | none |
-| `web` | Token/session gateway (FastAPI) | `https://voice-api.relate-ai.site` |
-| `api` | Dedicated API service (FastAPI) | internal |
+| `api` | Token/session and agent-management gateway (FastAPI) | `https://voice-api.relate-ai.site` |
 | `coturn` | TURN relay (TLS terminated at Traefik) | `turns:turn.relate-ai.site:443` (TCP+SNI) |
 | `harness` | One-shot scripted conversation validation | none (exits after deploy) |
 
@@ -89,7 +88,7 @@ and continues from the interrupting turn.
 | Domain | Target | Protocol |
 |---|---|---|
 | `voice.relate-ai.site` | Frontend (nginx) | HTTPS |
-| `voice-api.relate-ai.site` | Backend web service (FastAPI) | HTTPS |
+| `voice-api.relate-ai.site` | Backend API service (FastAPI) | HTTPS |
 | `livekit.relate-ai.site` | Backend LiveKit server | HTTPS/WSS |
 | `turn.relate-ai.site` | Backend coturn (TCP+SNI) | TLS |
 

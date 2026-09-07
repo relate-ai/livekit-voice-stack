@@ -22,7 +22,6 @@ services:
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY:-}: ${LIVEKIT_API_SECRET:-}"
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      SERVICE_FQDN_LIVEKIT_7880: https://livekit.relate-ai.site
     configs:
       - source: livekit
         target: /etc/livekit.yaml
@@ -102,31 +101,16 @@ services:
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      VOICE_PUBLIC_URL: ${VOICE_PUBLIC_URL:?}
+      LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL:?}
+      AGENT_STORE_PATH: /app/agents
+    volumes:
+      - agent-data:/app/agents
     depends_on:
       livekit: {condition: service_healthy}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081', timeout=2)"]
       interval: 15s
-      timeout: 3s
-      retries: 15
-    restart: unless-stopped
-    logging: *logging
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
-    environment:
-      VOICE_CONFIG_PATH: /app/config/voice-agent.yaml
-      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
-      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
-      WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
-      SERVICE_FQDN_WEB_8000: https://voice.relate-ai.site
-    depends_on:
-      livekit: {condition: service_healthy}
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
-      interval: 10s
       timeout: 3s
       retries: 15
     restart: unless-stopped
@@ -141,13 +125,17 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
       WEB_SESSION_SECRET: ${WEB_SESSION_SECRET:-}
-      SERVICE_FQDN_API_8000: https://voice-api.relate-ai.site
+      VOICE_PUBLIC_URL: ${VOICE_PUBLIC_URL:?}
+      LIVEKIT_PUBLIC_URL: ${LIVEKIT_PUBLIC_URL:?}
+      AGENT_STORE_PATH: /app/agents
+    volumes:
+      - agent-data:/app/agents
     expose:
       - "8000"
     depends_on:
       livekit: {condition: service_healthy}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8000/healthz"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2)"]
       interval: 10s
       timeout: 3s
       retries: 15
@@ -182,3 +170,4 @@ configs:
 
 volumes:
   redis-data:
+  agent-data:

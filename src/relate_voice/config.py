@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
@@ -132,9 +134,48 @@ class VoiceAgentConfig(StrictModel):
     observability: ObservabilityConfig
 
 
-def load_config(path: str | Path) -> VoiceAgentConfig:
+def _runtime_origin(environment: Mapping[str, str], name: str, scheme: str) -> str:
+    value = environment[name].strip()
+    try:
+        parsed = urlsplit(value)
+        valid_port = parsed.port
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a valid {scheme} origin") from exc
+
+    if (
+        parsed.scheme != scheme
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise RuntimeError(f"{name} must be a valid {scheme} origin")
+
+    port = f":{valid_port}" if valid_port is not None else ""
+    host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+    return f"{scheme}://{host}{port}"
+
+
+def load_config(
+    path: str | Path,
+    environment: Mapping[str, str] | None = None,
+) -> VoiceAgentConfig:
+    runtime = os.environ if environment is None else environment
+    required = ("VOICE_PUBLIC_URL", "LIVEKIT_PUBLIC_URL")
+    missing = [name for name in required if not runtime.get(name)]
+    if missing:
+        raise RuntimeError(f"Missing required runtime configuration: {', '.join(missing)}")
+
     with Path(path).open("r", encoding="utf-8") as handle:
         raw = yaml.safe_load(handle)
+
+    voice_public_url = _runtime_origin(runtime, "VOICE_PUBLIC_URL", "https")
+    livekit_public_url = _runtime_origin(runtime, "LIVEKIT_PUBLIC_URL", "wss")
+    raw["llm"]["site_url"] = voice_public_url
+    raw["ui"]["public_url"] = voice_public_url
+    raw["ui"]["livekit_url"] = livekit_public_url
     return VoiceAgentConfig.model_validate(raw)
 
 

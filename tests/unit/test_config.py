@@ -20,7 +20,51 @@ def test_loads_all_independent_configuration_sections(config_path):
     assert config.tts.voice == "asteria"
     assert config.llm.models == list(AUTHORISED_OPENROUTER_MODELS)
     assert config.turn_handling.interruption.enabled is True
-    assert config.ui.public_url == "https://voice.relate-ai.site"
+    assert str(config.llm.site_url) == "https://voice.example.test/"
+    assert config.ui.public_url == "https://voice.example.test"
+    assert config.ui.livekit_url == "wss://livekit.example.test"
+
+
+@pytest.mark.parametrize("name", ["VOICE_PUBLIC_URL", "LIVEKIT_PUBLIC_URL"])
+def test_missing_public_runtime_configuration_is_rejected(config_path, monkeypatch, name):
+    monkeypatch.delenv(name)
+
+    with pytest.raises(RuntimeError, match=name):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("VOICE_PUBLIC_URL", "http://voice.example.test"),
+        ("VOICE_PUBLIC_URL", "https://voice.example.test/path"),
+        ("VOICE_PUBLIC_URL", "https://user@voice.example.test"),
+        ("LIVEKIT_PUBLIC_URL", "https://livekit.example.test"),
+        ("LIVEKIT_PUBLIC_URL", "wss://livekit.example.test/path"),
+    ],
+)
+def test_public_runtime_configuration_must_be_an_origin(config_path, name, value):
+    environment = {
+        "VOICE_PUBLIC_URL": "https://voice.example.test",
+        "LIVEKIT_PUBLIC_URL": "wss://livekit.example.test",
+        name: value,
+    }
+
+    with pytest.raises(RuntimeError, match=name):
+        load_config(config_path, environment)
+
+
+def test_public_runtime_configuration_normalises_root_slashes(config_path):
+    config = load_config(
+        config_path,
+        {
+            "VOICE_PUBLIC_URL": "https://voice.example.test/",
+            "LIVEKIT_PUBLIC_URL": "wss://livekit.example.test/",
+        },
+    )
+
+    assert config.ui.public_url == "https://voice.example.test"
+    assert config.ui.livekit_url == "wss://livekit.example.test"
 
 
 def test_unknown_configuration_fields_are_rejected(config_path):

@@ -1,9 +1,10 @@
 # Configuration
 
-Single source: `config/voice-agent.yaml`, validated by
-`src/relate_voice/config.py` (Pydantic, extra fields forbidden). Invalid
-provider names, fields, model order, or missing secret references fail before
-the worker accepts jobs.
+Application behaviour is defined in `config/voice-agent.yaml` and validated by
+`src/relate_voice/config.py` (Pydantic, extra fields forbidden). Public origins
+come from required Coolify runtime variables so deployment topology is not
+compiled into the image. Invalid provider names, fields, model order, runtime
+URLs, or missing secret references fail before the worker accepts jobs.
 
 ## Sections
 
@@ -12,13 +13,13 @@ the worker accepts jobs.
 - `tts`: provider (`deepgram`), model (`aura-2`), voice (`asteria`), language,
   endpoint, secret_ref, sample_rate, mip_opt_out.
 - `llm`: provider (`openrouter`), endpoint, secret_ref, `models` (must equal
-  the exact authorised free chain in order), site_url, app_name, temperature,
+  the exact authorised free chain in order), app_name, temperature,
   max_tokens, timeout_seconds.
 - `fallback`: eligible HTTP statuses/categories, max attempts per model.
 - `turn_handling`: turn_detection (`vad`), endpointing delays, interruption
   (enabled, mode `vad`, min_duration, min_words, false-interruption resume).
 - `agent`: dispatch_name, display_name, instructions, greeting.
-- `ui`: public_url, livekit_url, token TTL (120s), session rate limits.
+- `ui`: token TTL (120s) and session rate limits.
 - `observability`: log_level, log_model_identity, prometheus_port.
 
 ## Swapping Providers
@@ -31,15 +32,24 @@ the worker accepts jobs.
 See `EXTENSION_POINTS.md` for detailed instructions per provider type.
 
 LiveKit network topology (Compose + embedded `configs.livekit.content`) is
-deployment configuration, not provider configuration: direct media ports,
-TURN/TLS route, Redis, and TLS hostnames live in `docker-compose.yml`.
+deployment configuration, not provider configuration. Coolify owns HTTP/WSS
+domains; Compose defines direct media ports, TURN/TLS, Redis, and services.
+
+## Runtime URLs
+
+- `VOICE_PUBLIC_URL`: exact frontend HTTPS origin used for CORS, Origin checks,
+  and the OpenRouter site identifier.
+- `LIVEKIT_PUBLIC_URL`: public `wss://` signalling origin returned to browsers.
+
+Both values are required Coolify runtime variables and are not stored in the
+application configuration file.
 
 ## Secrets
 
 Environment variables only (see `.env.example` for names):
 `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `REDIS_PASSWORD`, `WEB_SESSION_SECRET`,
 `DEEPGRAM_API_KEY`, `OPENROUTER_API_KEY`, `TURN_SECRET`. The agent uses the
-first five minus `WEB_SESSION_SECRET`; the web service uses LiveKit keys plus
+provider and LiveKit credentials; the API uses LiveKit keys plus
 `WEB_SESSION_SECRET`; coturn and LiveKit share `TURN_SECRET`.
 
 ## Constraints

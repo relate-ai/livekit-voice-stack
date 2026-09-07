@@ -2,8 +2,8 @@
 
 ## Health Signals
 
-- `GET https://voice.relate-ai.site/healthz` -> `{"status":"ok"}` (web).
-- `GET https://voice.relate-ai.site/api/diag` -> internal listener states
+- `GET https://voice-api.relate-ai.site/healthz` -> `{"status":"ok"}` (API).
+- `GET https://voice-api.relate-ai.site/api/diag` -> internal listener states
   (LiveKit 7880/7881, coturn 3478 + STUN, Redis 6379) and hairpin observations.
 - Coolify application status should be `running:healthy`.
 - Harness verdict: after each deploy, a `voice-harness-*` room appears; read
@@ -12,7 +12,7 @@
 
 ## Logs
 
-Coolify log view returns the web container. Agent/worker logs are visible in
+Coolify log view returns the API container. Agent/worker logs are visible in
 the Coolify web terminal or `docker logs` on the host. Application logs never
 contain secret values or prompt text (model slugs and timings only).
 

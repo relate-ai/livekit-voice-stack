@@ -73,14 +73,32 @@ def test_private_services_are_not_routed_or_published():
         assert not any(key.startswith("SERVICE_FQDN") for key in environment)
 
 
+def test_coolify_owns_all_http_domain_routing():
+    compose = _compose()
+    compose_text = (ROOT / "docker-compose.yml").read_text()
+
+    assert "web" not in compose["services"]
+    assert "SERVICE_FQDN_" not in compose_text
+    assert "traefik.http." not in compose_text
+
+
 def test_secrets_are_scoped_to_only_the_services_that_use_them():
     compose = _compose()
     agent_env = compose["services"]["agent"]["environment"]
-    web_env = compose["services"]["web"]["environment"]
+    api_env = compose["services"]["api"]["environment"]
 
     assert "WEB_SESSION_SECRET" not in agent_env
-    assert "DEEPGRAM_API_KEY" not in web_env
-    assert "OPENROUTER_API_KEY" not in web_env
+    assert "DEEPGRAM_API_KEY" not in api_env
+    assert "OPENROUTER_API_KEY" not in api_env
+
+
+def test_public_runtime_configuration_is_required_by_consumers():
+    compose = _compose()
+
+    for name in ("agent", "api"):
+        environment = compose["services"][name]["environment"]
+        assert environment["VOICE_PUBLIC_URL"] == "${VOICE_PUBLIC_URL:?}"
+        assert environment["LIVEKIT_PUBLIC_URL"] == "${LIVEKIT_PUBLIC_URL:?}"
 
 
 def test_images_and_dependencies_are_pinned():
@@ -128,7 +146,33 @@ def test_harness_is_a_scoped_one_shot_validation_service():
 def test_runtime_secrets_are_not_required_during_coolify_build_interpolation():
     compose_text = (ROOT / "docker-compose.yml").read_text()
 
-    assert ":?}" not in compose_text
+    for secret in (
+        "DEEPGRAM_API_KEY",
+        "LIVEKIT_API_KEY",
+        "LIVEKIT_API_SECRET",
+        "OPENROUTER_API_KEY",
+        "REDIS_PASSWORD",
+        "TURN_SECRET",
+        "WEB_SESSION_SECRET",
+    ):
+        assert f"${{{secret}:?}}" not in compose_text
+
+
+def test_agent_configuration_uses_a_compose_managed_named_volume():
+    compose = _compose()
+
+    assert "agent-data" in compose["volumes"]
+    for name in ("agent", "api"):
+        service = compose["services"][name]
+        assert service["environment"]["AGENT_STORE_PATH"] == "/app/agents"
+        assert "agent-data:/app/agents" in service["volumes"]
+
+
+def test_api_healthcheck_uses_the_guaranteed_python_runtime():
+    healthcheck = _compose()["services"]["api"]["healthcheck"]["test"]
+
+    assert healthcheck[:3] == ["CMD", "python", "-c"]
+    assert "urllib.request.urlopen('http://127.0.0.1:8000/healthz'" in healthcheck[3]
 
 
 def test_turn_tls_route_targets_coturn_directly():

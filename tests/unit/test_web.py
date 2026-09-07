@@ -35,7 +35,7 @@ def test_session_endpoint_mints_short_lived_room_scoped_token(config_path, secre
     assert response.status_code == 201
     body = response.json()
     claims = _jwt_payload(body["token"])
-    assert body["server_url"] == "wss://livekit.relate-ai.site"
+    assert body["server_url"] == config.ui.livekit_url
     assert claims["video"] == {
         "canPublish": True,
         "canPublishData": False,
