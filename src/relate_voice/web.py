@@ -234,6 +234,13 @@ def create_app(
         agent_store.save_agent(pkg)
         return {"agent_id": pkg.agent_id, "status": "created"}
 
+    @app.get("/api/agents/active")
+    async def get_active_agent() -> dict:
+        pkg = agent_store.get_active_agent()
+        if not pkg:
+            return {"agent_id": None}
+        return pkg.model_dump()
+
     @app.get("/api/agents/{agent_id}")
     async def get_agent(agent_id: str) -> dict:
         try:
@@ -294,13 +301,6 @@ def create_app(
             return {"agent_id": pkg.agent_id, "status": "active"}
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Agent not found")
-
-    @app.get("/api/agents/active")
-    async def get_active_agent() -> dict:
-        pkg = agent_store.get_active_agent()
-        if not pkg:
-            return {"agent_id": None}
-        return pkg.model_dump()
 
     # ── Import / Export ──
 

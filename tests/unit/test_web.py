@@ -68,3 +68,13 @@ def test_csp_uses_configured_livekit_endpoint(config_path, secret_environment):
     response = client.get("/")
 
     assert "connect-src 'self' wss://alternate.example" in response.headers["content-security-policy"]
+
+
+def test_active_agent_endpoint_returns_null_when_no_agent_active(config_path, secret_environment):
+    client = TestClient(create_app(load_config(config_path), secret_environment))
+
+    response = client.get("/api/agents/active")
+
+    assert response.status_code == 200
+    assert response.json() == {"agent_id": None}
+
